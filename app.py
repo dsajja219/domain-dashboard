@@ -12,66 +12,42 @@ st.set_page_config(
 )
 
 # ------------------ Background & Styles ------------------
-st.markdown(
-    """
-    <style>
-    body {
-        background-image: url("https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1950&q=80");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-    .stApp {
-        background-color: rgba(255, 255, 255, 0.85);
-        padding: 30px;
-        border-radius: 15px;
-    }
-    .centered {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    .small-box textarea {
-        width: 600px !important;
-        height: 150px !important;
-    }
-    table th, table td {
-        text-align: center;
-        padding: 10px;
-    }
-    table th {
-        background-color: #007BFF;
-        color: white;
-    }
-    table td {
-        background-color: #f9f9f9;
-        color: black;
-    }
-    .first-domain {
-        background-color: #D6EAF8 !important; /* Slightly darker for first domain columns */
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<style>
+body {
+    background-image: url("https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1950&q=80");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+.stApp {
+    background-color: rgba(255, 255, 255, 0.85);
+    padding: 30px;
+    border-radius: 15px;
+}
+table th, table td {
+    text-align: center;
+    padding: 10px;
+}
+table th {
+    background-color: #007BFF;
+    color: white;
+}
+table td {
+    background-color: #f9f9f9;
+    color: black;
+}
+</style>
+""", unsafe_allow_html=True)
 
-# ------------------ Header ------------------
 st.markdown("<h1 style='text-align:center;color:#2E4053;'>Durga's Domain Dashboard</h1>", unsafe_allow_html=True)
-st.markdown("<h4 style='text-align:center;color:#34495E;'>Enter multiple rows of domains. Each row separated by a newline, domains within a row separated by |</h4>", unsafe_allow_html=True)
-
-# ------------------ Input ------------------
-st.markdown("<div class='centered small-box'>", unsafe_allow_html=True)
-domains_input = st.text_area(
-    "",
-    placeholder="get.topincomejobs.com|trk.topincomejobs.com|img.topincomejobs.com\nexample.com|www.example2.com"
-)
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align:center;color:#34495E;'>Upload Excel file with Mailing, Tracking, and Image Hosting Domains</h4>", unsafe_allow_html=True)
 
 # ------------------ Functions ------------------
 def resolve_ip(host):
     try:
         return ",".join(list({ip[4][0] for ip in socket.getaddrinfo(host, None)}))
-    except Exception:
+    except:
         return "Unresolved"
 
 def get_main_domain(domain):
@@ -93,9 +69,9 @@ def get_mx_ips(domain):
             mx1_ip = resolve_ip(mx_records[0][0])
         if len(mx_records) >= 2:
             mx2_ip = resolve_ip(mx_records[1][0])
-    except Exception:
+    except:
         pass
-    return f"{mx1_ip},{mx2_ip}"
+    return mx1_ip, mx2_ip
 
 def get_expiry(domain):
     try:
@@ -106,65 +82,66 @@ def get_expiry(domain):
         if isinstance(exp, datetime):
             return exp.date()
         return "Unknown"
-    except Exception:
+    except:
         return "Unknown"
 
-# ------------------ Button ------------------
-st.markdown("<div class='centered'>", unsafe_allow_html=True)
-check_button = st.button("Check Domains")
-st.markdown("</div>", unsafe_allow_html=True)
+# ------------------ File Upload ------------------
+uploaded_file = st.file_uploader("Upload Excel file", type=["xlsx", "xls"])
+if uploaded_file:
+    df_input = pd.read_excel(uploaded_file)
 
-# ------------------ Processing ------------------
-if check_button:
-    if not domains_input.strip():
-        st.warning("⚠️ Please enter at least one row of domains.")
+    # Ensure columns exist
+    required_cols = ["Mailing Domain", "Tracking Domain", "Image Hosting Domain"]
+    if not all(col in df_input.columns for col in required_cols):
+        st.error(f"Excel must have columns: {', '.join(required_cols)}")
     else:
-        all_rows = [line.strip() for line in domains_input.splitlines() if line.strip()]
+        # ------------------ Process each row ------------------
         final_rows = []
 
-        for row_line in all_rows:
-            domains = [d.strip() for d in row_line.split("|") if d.strip()]
+        for _, row in df_input.iterrows():
             row_dict = {}
-            for i, d in enumerate(domains):
-                a_record = resolve_ip(d)
 
-                if i == 0:
-                    # First domain: full details + expiry
-                    mx_ips = get_mx_ips(d)
-                    main_domain = get_main_domain(d)
-                    a_record_main = resolve_ip(main_domain)
-                    expiry_date = get_expiry(main_domain)
+            # --- Mailing Domain (full details) ---
+            mailing = str(row["Mailing Domain"]).strip()
+            a_record_mailing = resolve_ip(mailing)
+            mx1, mx2 = get_mx_ips(mailing)
+            main_domain = get_main_domain(mailing)
+            a_record_main = resolve_ip(main_domain)
+            expiry = get_expiry(main_domain)
 
-                    row_dict[f"{d}"] = d
-                    row_dict[f"A Record ({d})"] = a_record
-                    row_dict[f"MX IPs ({d})"] = mx_ips
-                    row_dict[f"Main Domain ({d})"] = main_domain
-                    row_dict[f"A Record (Main {main_domain})"] = a_record_main
-                    row_dict[f"Expiry Date ({main_domain})"] = expiry_date
-                else:
-                    # Subsequent domains: only domain & A record
-                    row_dict[f"{d}"] = d
-                    row_dict[f"A Record ({d})"] = a_record
+            row_dict["Mailing Domain"] = mailing
+            row_dict["A Record"] = a_record_mailing
+            row_dict["MX1 IP"] = mx1
+            row_dict["MX2 IP"] = mx2
+
+            # --- Tracking Domain (only A Record) ---
+            tracking = str(row["Tracking Domain"]).strip()
+            a_record_tracking = resolve_ip(tracking)
+            row_dict["Tracking Domain"] = tracking
+            row_dict["Tracking Domain A Record"] = a_record_tracking
+
+            # --- Image Hosting Domain (only A Record) ---
+            image = str(row["Image Hosting Domain"]).strip()
+            a_record_image = resolve_ip(image)
+            row_dict["Image Hosting Domain"] = image
+            row_dict["Image Hosting Domain A Record"] = a_record_image
+
+            # --- Main Domain details ---
+            row_dict["Main Domain"] = main_domain
+            row_dict["A Record (Main Domain)"] = a_record_main
+            row_dict["Expiry Date"] = expiry
 
             final_rows.append(row_dict)
 
-        # Convert all rows to DataFrame
-        df = pd.DataFrame(final_rows)
+        df_output = pd.DataFrame(final_rows)
 
-        # ------------------ Display Table ------------------
         st.markdown("### ✅ Results")
-        st.markdown(
-            df.to_html(index=False, escape=False),
-            unsafe_allow_html=True
-        )
+        st.dataframe(df_output, use_container_width=True)
 
-        # CSV Download
+        # ------------------ Download ------------------
         st.download_button(
-            label="💾 Download CSV",
-            data=df.to_csv(index=False),
-            file_name="domain_dashboard_horizontal.csv",
+            label="💾 Download Excel",
+            data=df_output.to_csv(index=False),
+            file_name="domain_dashboard_output.csv",
             mime="text/csv"
         )
-
-# ------------------ Footer ------------------
-st.markdown("<div style='text-align:center;margin-top:30px;color:#2E4053;'>Built with ❤️ by Durga</div>", unsafe_allow_html=True)
