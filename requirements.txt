@@ -1,5 +1,6 @@
 streamlit
 pandas
-dnspython
-python-whois
+dns.resolver
 tldextract
+python-whois
+openpyxl
