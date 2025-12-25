@@ -3,9 +3,7 @@ import pandas as pd
 import dns.resolver
 import socket
 import tldextract
-import requests
 import time
-from datetime import datetime, timezone
 
 st.set_page_config(
     page_title="Durga's Domain Dashboard",
@@ -23,50 +21,41 @@ body {
 }
 
 .stApp {
-    background-color: rgba(255,255,255,0.90);
+    background-color: rgba(255,255,255,0.92);
     padding: 30px;
     border-radius: 15px;
 }
 
 /* TABLE */
-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-
 table th {
     background-color: #0D6EFD;
     color: white;
     font-weight: 700;
-    font-size: 15px;
     text-align: center;
-    padding: 12px;
-    border: 1px solid #0B5ED7;
 }
 
 table td {
-    background-color: #ffffff;
-    color: #000000;
     text-align: center;
-    padding: 10px;
-    border: 1px solid #dee2e6;
+    color: black;
 }
 
-/* Thumbs animation */
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.15); }
-    100% { transform: scale(1); }
+/* 👏 CLAPS ANIMATION */
+@keyframes clap {
+    0%   { transform: scale(1) rotate(0deg); opacity: 0.6; }
+    50%  { transform: scale(1.4) rotate(-10deg); opacity: 1; }
+    100% { transform: scale(1) rotate(10deg); opacity: 0.6; }
+}
+
+.clap {
+    font-size: 90px;
+    animation: clap 0.9s infinite;
+    filter: drop-shadow(0 0 12px #ffc107);
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown(
     "<h1 style='text-align:center;color:#2E4053;'>Durga's Domain Dashboard</h1>",
-    unsafe_allow_html=True
-)
-st.markdown(
-    "<h4 style='text-align:center;color:#34495E;'>Excel → DNS → MX → Expiry Dashboard</h4>",
     unsafe_allow_html=True
 )
 
@@ -100,38 +89,6 @@ def get_mx_ips(domain):
         pass
     return mx1_ip, mx2_ip
 
-@st.cache_data(ttl=86400)
-def get_expiry(domain):
-    try:
-        r = requests.get(f"https://rdap.org/domain/{domain}", timeout=10)
-        if r.status_code != 200:
-            return None
-        for event in r.json().get("events", []):
-            if event.get("eventAction") == "expiration":
-                return event.get("eventDate")
-    except:
-        pass
-    return None
-
-def expiry_style(expiry):
-    if not expiry or expiry == "Unknown":
-        return "color:gray;"
-    try:
-        exp_date = datetime.fromisoformat(expiry.replace("Z","")).date()
-        today = datetime.now(timezone.utc).date()
-        days = (exp_date - today).days
-
-        if days < 0:
-            return "color:white;background-color:#dc3545;font-weight:bold;"
-        elif days <= 30:
-            return "color:#721c24;background-color:#f8d7da;font-weight:bold;"
-        elif days <= 90:
-            return "color:#856404;background-color:#fff3cd;font-weight:bold;"
-        else:
-            return "color:#155724;background-color:#d4edda;font-weight:bold;"
-    except:
-        return "color:gray;"
-
 # ------------------ FILE UPLOAD ------------------
 uploaded_file = st.file_uploader(
     "Upload Excel file",
@@ -145,11 +102,18 @@ if uploaded_file:
     if not all(col in df.columns for col in required_cols):
         st.error("Excel must contain: Mailing Domain | Tracking Domain | Image Hosting Domain")
     else:
-        # 👍 Thumbs-up animation
+        # 👏 VISUAL CLAPS
         st.markdown("""
         <div style="display:flex;justify-content:center;margin-top:20px;">
-            <div style="font-size:80px;animation:pulse 1.2s infinite;">👍</div>
+            <div class="clap">👏👏👏</div>
         </div>
+        """, unsafe_allow_html=True)
+
+        # 🔊 CLAP SOUND
+        st.markdown("""
+        <audio autoplay>
+            <source src="https://www.soundjay.com/human/applause-01.mp3" type="audio/mpeg">
+        </audio>
         """, unsafe_allow_html=True)
 
         st.success("Excel uploaded successfully! Processing domains...")
@@ -160,37 +124,35 @@ if uploaded_file:
             mailing = str(r["Mailing Domain"]).strip()
             tracking = str(r["Tracking Domain"]).strip()
             image = str(r["Image Hosting Domain"]).strip()
-
             main_domain = get_main_domain(mailing)
-            expiry = get_expiry(main_domain)
 
             rows.append({
                 "Mailing Domain": mailing,
                 "A Record": resolve_ip(mailing),
                 "MX1 IP": get_mx_ips(mailing)[0],
                 "MX2 IP": get_mx_ips(mailing)[1],
+
                 "Tracking Domain": tracking,
                 "Tracking A Record": resolve_ip(tracking),
+
                 "Image Hosting Domain": image,
                 "Image Hosting A Record": resolve_ip(image),
+
                 "Main Domain": main_domain,
-                "Main Domain A Record": resolve_ip(main_domain),
-                "Expiry Date": expiry or "Unknown"
+                "Main Domain A Record": resolve_ip(main_domain)
             })
 
         out = pd.DataFrame(rows)
 
         st.markdown("### ✅ Results")
-        st.dataframe(
-            out.style.applymap(expiry_style, subset=["Expiry Date"]),
-            use_container_width=True
-        )
+        st.dataframe(out, use_container_width=True)
 
-        # 🎆 Crackers / celebration for ~5 seconds
-        st.markdown(
-            "<h3 style='text-align:center;color:#198754;'>Processing Complete 🎉</h3>",
-            unsafe_allow_html=True
-        )
+        # 🎉 COMPLETION SOUND + BALLOONS
+        st.markdown("""
+        <audio autoplay>
+            <source src="https://www.soundjay.com/misc/sounds/confetti-1.mp3" type="audio/mpeg">
+        </audio>
+        """, unsafe_allow_html=True)
 
         end_time = time.time() + 5
         while time.time() < end_time:
