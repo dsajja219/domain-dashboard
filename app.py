@@ -3,6 +3,8 @@ import pandas as pd
 import dns.resolver
 import socket
 import tldextract
+import whois
+from datetime import datetime
 
 st.set_page_config(
     page_title="Durga's Domain Dashboard",
@@ -29,8 +31,9 @@ st.markdown(
         justify-content: center;
         align-items: center;
     }
-    .small-box input {
-        width: 500px !important;
+    .small-box textarea {
+        width: 600px !important;
+        height: 150px !important;
     }
     table th, table td {
         text-align: center;
@@ -44,6 +47,9 @@ st.markdown(
         background-color: #f9f9f9;
         color: black;
     }
+    .first-domain {
+        background-color: #D6EAF8 !important; /* Slightly darker for first domain columns */
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -51,13 +57,13 @@ st.markdown(
 
 # ------------------ Header ------------------
 st.markdown("<h1 style='text-align:center;color:#2E4053;'>Durga's Domain Dashboard</h1>", unsafe_allow_html=True)
-st.markdown("<h4 style='text-align:center;color:#34495E;'>Enter multiple domains separated by |</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align:center;color:#34495E;'>Enter multiple rows of domains. Each row separated by a newline, domains within a row separated by |</h4>", unsafe_allow_html=True)
 
 # ------------------ Input ------------------
 st.markdown("<div class='centered small-box'>", unsafe_allow_html=True)
-domains_input = st.text_input(
+domains_input = st.text_area(
     "",
-    placeholder="example.com|example2.com|example3.com"
+    placeholder="get.topincomejobs.com|trk.topincomejobs.com|img.topincomejobs.com\nexample.com|www.example2.com"
 )
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -91,6 +97,18 @@ def get_mx_ips(domain):
         pass
     return f"{mx1_ip},{mx2_ip}"
 
+def get_expiry(domain):
+    try:
+        w = whois.whois(domain)
+        exp = w.expiration_date
+        if isinstance(exp, list):
+            exp = exp[0]
+        if isinstance(exp, datetime):
+            return exp.date()
+        return "Unknown"
+    except Exception:
+        return "Unknown"
+
 # ------------------ Button ------------------
 st.markdown("<div class='centered'>", unsafe_allow_html=True)
 check_button = st.button("Check Domains")
@@ -99,26 +117,39 @@ st.markdown("</div>", unsafe_allow_html=True)
 # ------------------ Processing ------------------
 if check_button:
     if not domains_input.strip():
-        st.warning("⚠️ Please enter at least one domain.")
+        st.warning("⚠️ Please enter at least one row of domains.")
     else:
-        domains = [d.strip() for d in domains_input.split("|") if d.strip()]
-        result_dict = {}
+        all_rows = [line.strip() for line in domains_input.splitlines() if line.strip()]
+        final_rows = []
 
-        for d in domains:
-            a_record = resolve_ip(d)
-            mx_ips = get_mx_ips(d)
-            main_domain = get_main_domain(d)
-            a_record_main = resolve_ip(main_domain)
+        for row_line in all_rows:
+            domains = [d.strip() for d in row_line.split("|") if d.strip()]
+            row_dict = {}
+            for i, d in enumerate(domains):
+                a_record = resolve_ip(d)
 
-            # Add to horizontal dict
-            result_dict[f"{d}"] = d
-            result_dict[f"A Record ({d})"] = a_record
-            result_dict[f"MX IPs ({d})"] = mx_ips
-            result_dict[f"Main Domain ({d})"] = main_domain
-            result_dict[f"A Record (Main {main_domain})"] = a_record_main
+                if i == 0:
+                    # First domain: full details + expiry
+                    mx_ips = get_mx_ips(d)
+                    main_domain = get_main_domain(d)
+                    a_record_main = resolve_ip(main_domain)
+                    expiry_date = get_expiry(main_domain)
 
-        # Convert to single-row DataFrame
-        df = pd.DataFrame([result_dict])
+                    row_dict[f"{d}"] = d
+                    row_dict[f"A Record ({d})"] = a_record
+                    row_dict[f"MX IPs ({d})"] = mx_ips
+                    row_dict[f"Main Domain ({d})"] = main_domain
+                    row_dict[f"A Record (Main {main_domain})"] = a_record_main
+                    row_dict[f"Expiry Date ({main_domain})"] = expiry_date
+                else:
+                    # Subsequent domains: only domain & A record
+                    row_dict[f"{d}"] = d
+                    row_dict[f"A Record ({d})"] = a_record
+
+            final_rows.append(row_dict)
+
+        # Convert all rows to DataFrame
+        df = pd.DataFrame(final_rows)
 
         # ------------------ Display Table ------------------
         st.markdown("### ✅ Results")
@@ -131,7 +162,7 @@ if check_button:
         st.download_button(
             label="💾 Download CSV",
             data=df.to_csv(index=False),
-            file_name="horizontal_domain_results.csv",
+            file_name="domain_dashboard_horizontal.csv",
             mime="text/csv"
         )
 
