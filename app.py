@@ -26,36 +26,36 @@ body {
     border-radius: 15px;
 }
 
-/* TABLE */
+/* TABLE STYLING */
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
 table th {
     background-color: #0D6EFD;
     color: white;
     font-weight: 700;
     text-align: center;
+    padding: 12px;
 }
 
 table td {
-    text-align: center;
+    background-color: #ffffff;
     color: black;
-}
-
-/* 👏 CLAPS ANIMATION */
-@keyframes clap {
-    0%   { transform: scale(1) rotate(0deg); opacity: 0.6; }
-    50%  { transform: scale(1.4) rotate(-10deg); opacity: 1; }
-    100% { transform: scale(1) rotate(10deg); opacity: 0.6; }
-}
-
-.clap {
-    font-size: 90px;
-    animation: clap 0.9s infinite;
-    filter: drop-shadow(0 0 12px #ffc107);
+    text-align: center;
+    padding: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown(
     "<h1 style='text-align:center;color:#2E4053;'>Durga's Domain Dashboard</h1>",
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    "<h4 style='text-align:center;color:#34495E;'>Upload Excel file to check DNS & MX records</h4>",
     unsafe_allow_html=True
 )
 
@@ -102,21 +102,7 @@ if uploaded_file:
     if not all(col in df.columns for col in required_cols):
         st.error("Excel must contain: Mailing Domain | Tracking Domain | Image Hosting Domain")
     else:
-        # 👏 VISUAL CLAPS
-        st.markdown("""
-        <div style="display:flex;justify-content:center;margin-top:20px;">
-            <div class="clap">👏👏👏</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # 🔊 CLAP SOUND
-        st.markdown("""
-        <audio autoplay>
-            <source src="https://www.soundjay.com/human/applause-01.mp3" type="audio/mpeg">
-        </audio>
-        """, unsafe_allow_html=True)
-
-        st.success("Excel uploaded successfully! Processing domains...")
+        st.success("Excel uploaded successfully. Processing domains...")
 
         rows = []
 
@@ -147,17 +133,8 @@ if uploaded_file:
         st.markdown("### ✅ Results")
         st.dataframe(out, use_container_width=True)
 
-        # 🎉 COMPLETION SOUND + BALLOONS
-        st.markdown("""
-        <audio autoplay>
-            <source src="https://www.soundjay.com/misc/sounds/confetti-1.mp3" type="audio/mpeg">
-        </audio>
-        """, unsafe_allow_html=True)
-
-        end_time = time.time() + 5
-        while time.time() < end_time:
-            st.balloons()
-            time.sleep(1)
+        # 🎈 OPTIONAL BALLOONS
+        st.balloons()
 
         st.download_button(
             "💾 Download CSV",
