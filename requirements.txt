@@ -1,6 +1,6 @@
-streamlit>=1.26
-pandas>=2.0
-openpyxl>=3.1
-dnspython>=2.4
-tldextract>=3.4
-whois>=0.9
+streamlit
+pandas
+openpyxl
+dnspython
+tldextract
+requests
